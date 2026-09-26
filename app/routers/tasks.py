@@ -14,6 +14,8 @@ from app.models.task import Task
 from app.models.user import User
 from app.models.project import Project
 
+from app.tasks.background_tasks import send_notification
+
 from app.schemas.task import (
     TaskCreate,
     TaskResponse,
@@ -482,19 +484,23 @@ async def create_task(
 
     await db.commit()
 
-
-    await db.refresh(new_task)
-
+await db.refresh(new_task)
 
 
-    # Remove old cache
+# Send notification using Celery
+send_notification.delay(
+    assigned_user.email
+)
 
-    await redis.delete(
-        f"tasks:user:{task_data.assigned_to}:*"
-    )
+
+# Remove old cache
+
+await redis.delete(
+    f"tasks:user:{task_data.assigned_to}:*"
+)
 
 
-    return new_task
+return new_task
 
 
 
